@@ -1,0 +1,39 @@
+% refconf.sty - LuaLaTeX based configuration for references in LaTeX
+% Version: alpha-0.1
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{refsuite}[2024/12/20 alpha-0.1 Lua]
+
+% ==============================================================================
+% ENGINE AND PACKAGE REQUIREMENTS
+% ==============================================================================
+% require LuaTeX enginge
+\RequirePackage{iftex}
+\RequireLuaTeX
+
+\RequirePackage{kvoptions}
+\RequirePackage{luaboolean}
+
+\SetupKeyvalOptions{family=refconf, prefix=refconf@}
+\DeclareStringOption[]{configuration}
+\ProcessKeyvalOptions*
+
+% ==============================================================================
+% LUA MODULE INITIALIZATION
+% ==============================================================================
+% Initialize the Lua configuration module and apply user configuration
+\directlua{refsuite = require('refsuite.lua').init()}
+\makeatletter
+\let\refconfpath\refconf@configuration
+\makeatother
+\directlua{refsuite = refsuite.set_configuration('\refconfpath')}
+
+\directlua{refsuite.configure()}%
+% ==============================================================================
+% FUTURE EXTENSIONS (TODO)
+% ==============================================================================
+% TODO: add support for zref and knowledge packages
+% I guess knowledge package should be patched, in order
+% to support zref (and finally add externalization)
+%\RequirePackage{zref-clever}%
+%\RequirePackage{knowledge}%
+\endinput
