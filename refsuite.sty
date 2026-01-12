@@ -1,0 +1,63 @@
+% refconf.sty - LuaLaTeX based configuration for references in LaTeX
+% Version: alpha-0.1
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{refsuite}[2024/12/20 alpha-0.1 Lua]
+
+% ==============================================================================
+% ENGINE AND PACKAGE REQUIREMENTS
+% ==============================================================================
+% require LuaTeX enginge
+\RequirePackage{iftex}
+\RequirePackage{luaboolean}
+\RequireLuaTeX
+
+\RequirePackage{kvoptions}
+\SetupKeyvalOptions{family=refconf, prefix=refconf@}
+\DeclareStringOption[]{configuration}
+\ProcessKeyvalOptions*
+
+% ==============================================================================
+% LUA MODULE INITIALIZATION
+% ==============================================================================
+% Initialize the Lua configuration module and apply user configuration
+\makeatletter
+\directlua{refsuite = require('refsuite.lua').init()}
+\directlua{refsuite.set_configuration('\refconf@configuration')}
+\makeatother
+
+% ==============================================================================
+% HYPERREF CONFIGURATION (enabled with 'hyperref.enable' option)
+% ==============================================================================
+\IfLuaBooleanT{refsuite.configuration.hyperref.enable}{%
+  \PassOptionsToPackage{\directlua{tex.sprint(refsuite.get_hyperref_options())}}{hyperref}%
+  \RequirePackage{hyperref}%
+  \directlua{refsuite.setuphyperref(configuration)}%
+}
+
+% ==============================================================================
+% BIBLATEX CONFIGURATION (enabled with 'bibtex.enable' option)
+% ==============================================================================
+\IfLuaBooleanT{refsuite.configuration.bibtex.enable}{%
+  \PassOptionsToPackage{\directlua{tex.sprint(refsuite.get_biblatex_options())}}{biblatex}%
+  \RequirePackage{biblatex}%
+  \directlua{refsuite.setupbiblatex(configuration)}%
+}
+
+% ==============================================================================
+% INDEX CONFIGURATION (enabled with 'indexes.enable' option)
+% ==============================================================================
+\IfLuaBooleanT{refsuite.configuration.indexes.enable}{%
+  \PassOptionsToPackage{\directlua{tex.sprint(refsuite.get_imakeidx_options())}}{imakeidx}%
+  \RequirePackage{imakeidx}%
+  \directlua{refsuite.setupimakeidx(configuration)}%
+}
+
+% ==============================================================================
+% FUTURE EXTENSIONS (TODO)
+% ==============================================================================
+% TODO: add support for zref and knowledge packages
+% I guess knowledge package should be patched, in order
+% to support zref (and finally add externalization)
+%\RequirePackage{zref-clever}%
+%\RequirePackage{knowledge}%
+\endinput
