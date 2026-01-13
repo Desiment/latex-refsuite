@@ -1,0 +1,6 @@
+[submodule "deps/luaboolean"]
+	path = deps/luaboolean
+	url = https://github.com/Desiment/latex-luaboolean
+[submodule "deps/luatableprint"]
+	path = deps/luatableprint
+	url = https://github.com/Desiment/latex-luatableprint

@@ -1,0 +1,251 @@
+\documentclass{article}
+\usepackage{filecontents}
+
+% ==============================================================================
+% CREATE CONFIGURATION FILE
+% ==============================================================================
+\begin{filecontents*}{exampleconf.lua}
+-- Custom configuration file for refsuite package
+-- This file overrides the default configuration
+
+local CustomConfig = {
+    hyperref = {
+        enable = true,
+        loadtime_opts = {},
+        shortref = {
+            {csname = 'picref', reftext = 'Fig.'},
+            {csname = 'tabref', reftext = 'Table'},
+            {csname = 'secref', reftext = 'Section'}
+        },
+        hypersetup = {
+            breaklinks = true,
+            hyperindex = true,
+            colorlinks = true,
+            hidelinks = false,
+            unicode = true,
+            pdfauthor = {'John Doe'},
+            pdfsubject = {'RefSuite Package Demonstration'},
+            pdfkeywords = {'LaTeX, LuaTeX, bibliography, indexes'},
+            pdftitle = {'RefSuite Demonstration'},
+            bookmarksopen = true,
+            linktocpage = true,
+            plainpages = false,
+            pdfpagelabels = true,
+            -- Link colors
+            urlcolor = 'blue',
+            linkcolor = 'red',
+            filecolor = 'magenta',
+            citecolor = 'green'
+        }
+    },
+    
+    -- Enable bibliography support
+    bibtex = {
+        enable = true,
+        loadtime_opts = {backend = 'biber', style = 'numeric'},
+        path = 'build',  -- build directory
+        style = 'numeric',
+        
+        -- Configuration for multiple bibliographies
+        bibliographies = {
+            {
+                name = 'main',
+                title = 'References',
+                files = 'main.bib',
+            },
+            {
+                name = 'git',
+                title = 'Online Resources and Repositories',
+                files = {'online.bib'},
+            }
+        }
+    },
+    
+    -- Enable index support
+    indexes = {
+        enable = true,
+        loadtime_opts = {'makeindex'},
+        
+        -- Index configuration
+        list = {
+            -- Notation index
+            {
+                name = 'notation',
+                title = 'List of Notations',
+                intoc = true,
+                columns = 2,
+                columnsep = '20pt',
+            },
+            -- Main subject index
+            {
+                name = nil,
+                title = 'Subject Index',
+                intoc = true,
+                columns = 3,
+                columnsep = '15pt',
+            }
+        }
+    }
+}
+
+return CustomConfig
+\end{filecontents*}
+
+% ==============================================================================
+% CREATE BIBLIOGRAPHY FILES
+% ==============================================================================
+\begin{filecontents*}{main.bib}
+@book{knuth1984texbook,
+  author = {Knuth, Donald E.},
+  title = {The {\TeX}book},
+  year = {1984},
+  publisher = {Addison-Wesley},
+  address = {Reading, Massachusetts},
+}
+
+@article{lamport1994latex,
+  author = {Lamport, Leslie},
+  title = {{\LaTeX}: A Document Preparation System},
+  year = {1994},
+  publisher = {Addison-Wesley},
+  edition = {2nd},
+}
+
+@book{mittelbach2004latex,
+  author = {Mittelbach, Frank and Goossens, Michel},
+  title = {The {\LaTeX} Companion},
+  year = {2004},
+  publisher = {Addison-Wesley},
+  edition = {2nd},
+}
+\end{filecontents*}
+
+\begin{filecontents*}{online.bib}
+@online{torvalds2003git,
+  author = {Torvalds, Linus},
+  title = {Git: Fast Version Control System},
+  year = {2003},
+  url = {https://git-scm.com},
+  urldate = {2024-01-15},
+}
+
+@online{ctan2024latex,
+  author = {{CTAN Team}},
+  title = {Comprehensive {\TeX} Archive Network},
+  year = {2024},
+  url = {https://ctan.org},
+  urldate = {2024-01-15},
+}
+
+@online{stackexchange2024tex,
+  author = {{Stack Exchange Community}},
+  title = {{\TeX} - {\LaTeX} Stack Exchange},
+  year = {2024},
+  url = {https://tex.stackexchange.com},
+  urldate = {2024-01-15},
+}
+\end{filecontents*}
+
+% ==============================================================================
+% LOAD REFSUITE PACKAGE
+% ==============================================================================
+\usepackage[configuration=build/exampleconf.lua]{refsuite}
+
+% ==============================================================================
+% DOCUMENT CONTENT
+% ==============================================================================
+\begin{document}
+
+\title{Example of Using the RefSuite Package}
+\author{John Doe}
+\date{\today}
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+
+This document demonstrates the use of the \texttt{refsuite} package for managing references, bibliography, and indexes. All necessary files are created inline using the \texttt{filecontents} package.
+
+\subsection{References to Document Elements}
+
+The package automatically creates commands for short references. For example:
+
+\begin{itemize}
+    \item Reference to a figure: \picref{fig:sample} or \Picref{fig:sample}
+    \item Reference to a table: \tabref{tab:sample} or \Tabref{tab:sample}
+    \item Reference to a section: \secref{sec:conclusion} or \Secref{sec:conclusion}
+\end{itemize}
+
+\section{Main Content}
+
+\subsection{Figures}
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\parbox{0.5\textwidth}{\centering Example figure}}
+    \caption{Example figure with caption}
+    \label{fig:sample}
+\end{figure}
+
+As shown in \picref{fig:sample}, the package allows convenient referencing of graphic materials.
+
+\subsection{Tables}
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{|c|c|}
+        \hline
+        Column 1 & Column 2 \\
+        \hline
+        Data 1 & Data 2 \\
+        Data 3 & Data 4 \\
+        \hline
+    \end{tabular}
+    \caption{Example table}
+    \label{tab:sample}
+\end{table}
+
+According to the data in \tabref{tab:sample}, conclusions can be drawn.
+
+\subsection{Using Bibliography}
+
+In scientific works, it is often necessary to cite sources \cite{knuth1984texbook}. 
+For online resources, a separate bibliography is used \cite{torvalds2003git}.
+
+\subsection{Working with Indexes}
+
+You can add entries to different indexes:
+
+\index[notation]{$\alpha$} Alpha notation
+\index[notation]{$\beta$} Beta notation
+\index{LaTeX} Typesetting system
+\index{bibliography} List of references
+\index{index} Alphabetical index
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+The \texttt{refsuite} package provides a convenient way to configure the reference, bibliography, and index system in LuaLaTeX. This standalone example shows how to use all features in a single file.
+
+% ==============================================================================
+% BIBLIOGRAPHY
+% ==============================================================================
+% Using the created commands to print bibliographies
+% \printbibliographymain - for main literature
+% \printbibliographygit - for online resources
+
+\printbibliographymain
+\printbibliographygit
+
+% ==============================================================================
+% INDEXES
+% ==============================================================================
+% Using the created commands to print indexes
+% \printindexnotation - for list of notations
+% \printindex - for subject index (default)
+
+\printindexnotation
+\printindex
+
+\end{document}
