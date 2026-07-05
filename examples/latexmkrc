@@ -1,0 +1,10 @@
+$pdf_mode  = 4;
+$aux_dir   = '.build';
+$out_dir   = '.';
+$clean_ext = 'out bcf run.xml idx ind ilg bbl blg';
+
+$lualatex = 'lualatex %O -halt-on-error --shell-escape %S';
+
+ensure_path('TEXINPUTS', '..//');
+ensure_path('LUAINPUTS', './/');
+ensure_path('LUAINPUTS', '..//');

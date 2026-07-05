@@ -1,0 +1,6 @@
+examples/.build/
+examples/*.pdf
+examples/*.synctex.gz
+examples/*.idx
+examples/*.ilg
+examples/*.ind

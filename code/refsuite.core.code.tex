@@ -1,0 +1,557 @@
+% ==============================================================================
+% REFERENCE CONFIGURATION CORE
+% ==============================================================================
+% Implements both public TeX configuration commands:
+%   \DefaultReferencesConfiguration
+%   \SetReferencesConfiguration
+% and the TeX side of the Lua configuration bridge:
+%   \LoadLuaReferencesConfiguration
+%
+% Configuration is accumulated in expl3 variables, then applied once in the
+% preamble. Reconfiguration is rejected so package loading and generated commands
+% stay deterministic.
+
+\ExplSyntaxOn
+
+% ------------------------------------------------------------------------------
+% Configuration state
+% ------------------------------------------------------------------------------
+% Booleans select feature groups. Token lists, property lists, clists, and seqs
+% hold the parsed settings until \refsuite_apply_configuration: consumes them.
+
+\bool_new:N \l_refsuite_configured_bool
+\bool_new:N \l_refsuite_hyperref_bool
+\bool_new:N \l_refsuite_biblatex_bool
+\bool_new:N \l_refsuite_indexes_bool
+\bool_new:N \l_refsuite_zrefclever_bool
+\bool_new:N \l_refsuite_azcref_bool
+
+\tl_new:N \l_refsuite_hyperref_options_tl
+\tl_new:N \l_refsuite_hypersetup_tl
+\tl_new:N \l_refsuite_biblatex_options_tl
+\tl_new:N \l_refsuite_biblatex_path_tl
+\tl_new:N \l_refsuite_biblatex_style_tl
+\tl_new:N \l_refsuite_indexes_options_tl
+\tl_new:N \l_refsuite_zrefclever_options_tl
+\tl_new:N \l_refsuite_zrefclever_setup_tl
+\tl_new:N \l_refsuite_index_name_tl
+\tl_new:N \l_refsuite_bibliography_name_tl
+\tl_new:N \l_refsuite_bibliography_title_tl
+\tl_new:N \l_refsuite_biblatex_sourcemap_tl
+
+\prop_new:N \l_refsuite_shortrefs_prop
+\clist_new:N \l_refsuite_bibresources_clist
+\clist_new:N \l_refsuite_bibliography_files_clist
+\seq_new:N \l_refsuite_bibliographies_seq
+\seq_new:N \l_refsuite_indexes_seq
+
+% ------------------------------------------------------------------------------
+% Messages
+% ------------------------------------------------------------------------------
+% Most conflicts are warnings because refsuite can skip generated convenience
+% commands while still leaving the document in a usable state.
+
+\msg_new:nnn { refsuite } { already-configured }
+  { References~configuration~has~already~been~applied. }
+\msg_new:nnn { refsuite } { lua-unavailable }
+  { Lua~references~configuration~requested,~but~the~current~engine~is~not~LuaTeX. }
+\msg_new:nnn { refsuite } { shortref-exists }
+  { Short~reference~command~already~exists;~not~overwriting. }
+\msg_new:nnn { refsuite } { azcref-exists }
+  { Automatic~zref-clever~command~already~exists;~not~overwriting. }
+\msg_new:nnn { refsuite } { azcref-unavailable }
+  { Automatic~azcref~requires~LuaTeX. }
+\msg_new:nnn { refsuite } { printindex-exists }
+  { Index~printing~command~already~exists;~not~overwriting. }
+\msg_new:nnn { refsuite } { printbibliography-exists }
+  { Bibliography~printing~command~already~exists;~not~overwriting. }
+
+% ------------------------------------------------------------------------------
+% Defaults and one-shot configuration guard
+% ------------------------------------------------------------------------------
+
+% Reset all configuration variables to the default package policy. This is called
+% immediately before applying either the default configuration or user keys.
+\cs_new_protected:Npn \refsuite_reset_configuration:
+  {
+    \bool_set_true:N \l_refsuite_hyperref_bool
+    \bool_set_false:N \l_refsuite_biblatex_bool
+    \bool_set_false:N \l_refsuite_indexes_bool
+    \bool_set_false:N \l_refsuite_zrefclever_bool
+    \bool_set_false:N \l_refsuite_azcref_bool
+    \tl_set:Nn \l_refsuite_hyperref_options_tl
+      { unicode, hyperindex, pdfpagelabels }
+    \tl_set:Nn \l_refsuite_hypersetup_tl
+      {
+        breaklinks,
+        colorlinks,
+        linktocpage,
+        urlcolor = blue,
+        linkcolor = red,
+        filecolor = red,
+        citecolor = blue
+      }
+    \tl_clear:N \l_refsuite_biblatex_options_tl
+    \tl_clear:N \l_refsuite_biblatex_path_tl
+    \tl_clear:N \l_refsuite_biblatex_style_tl
+    \tl_clear:N \l_refsuite_indexes_options_tl
+    \tl_clear:N \l_refsuite_zrefclever_options_tl
+    \tl_clear:N \l_refsuite_zrefclever_setup_tl
+    \prop_clear:N \l_refsuite_shortrefs_prop
+    \prop_put:Nnn \l_refsuite_shortrefs_prop { picref } { pic. }
+    \prop_put:Nnn \l_refsuite_shortrefs_prop { tabref } { tab. }
+    \prop_put:Nnn \l_refsuite_shortrefs_prop { lstref } { listing }
+    \prop_put:Nnn \l_refsuite_shortrefs_prop { digref } { diag. }
+    \prop_put:Nnn \l_refsuite_shortrefs_prop { secref } { sec. }
+    \clist_clear:N \l_refsuite_bibresources_clist
+    \seq_clear:N \l_refsuite_bibliographies_seq
+    \seq_clear:N \l_refsuite_indexes_seq
+  }
+
+% Capitalize a generated command name, for example picref -> Picref.
+\cs_new:Npn \refsuite_capitalize:n #1
+  { \refsuite_capitalize:w #1 \q_stop }
+\cs_new:Npn \refsuite_capitalize:w #1#2 \q_stop
+  { \tl_upper_case:n {#1} #2 }
+
+% Run #1 only before configuration has been applied. Package loading and command
+% generation are intentionally one-shot preamble operations.
+\cs_new_protected:Npn \refsuite_assert_not_configured:T #1
+  {
+    \bool_if:NTF \l_refsuite_configured_bool
+      { \msg_error:nn { refsuite } { already-configured } }
+      {#1}
+  }
+
+% ------------------------------------------------------------------------------
+% Short-reference parsing
+% ------------------------------------------------------------------------------
+% Short references are stored as csname -> printed prefix pairs. Generated
+% commands later expand to "<prefix>~\ref{<label>}".
+
+\cs_new_protected:Npn \refsuite_shortrefs_set:n #1
+  {
+    \prop_clear:N \l_refsuite_shortrefs_prop
+    \refsuite_shortrefs_put:n {#1}
+  }
+
+\cs_new_protected:Npn \refsuite_shortrefs_put:n #1
+  {
+    \keyval_parse:NNn
+      \refsuite_shortref_without_value:n
+      \refsuite_shortref_with_value:nn
+      {#1}
+  }
+
+\cs_new_protected:Npn \refsuite_shortref_without_value:n #1 { }
+
+\cs_new_protected:Npn \refsuite_shortref_with_value:nn #1#2
+  {
+    \tl_if_blank:nF {#1}
+      { \prop_put:Nnn \l_refsuite_shortrefs_prop {#1} {#2} }
+  }
+
+% ------------------------------------------------------------------------------
+% Index and bibliography list parsing
+% ------------------------------------------------------------------------------
+% The top-level key parser receives comma lists of nested key lists. Each nested
+% item is kept as a sequence entry and parsed later while applying features.
+
+\cs_new_protected:Npn \refsuite_indexes_set:n #1
+  {
+    \seq_clear:N \l_refsuite_indexes_seq
+    \clist_map_inline:nn {#1}
+      { \seq_put_right:Nn \l_refsuite_indexes_seq {##1} }
+  }
+
+\cs_new_protected:Npn \refsuite_bibliographies_set:n #1
+  {
+    \seq_clear:N \l_refsuite_bibliographies_seq
+    \clist_map_inline:nn {#1}
+      { \seq_put_right:Nn \l_refsuite_bibliographies_seq {##1} }
+  }
+
+% Parse one bibliography group into temporary variables used by the source map,
+% \addbibresource calls, and generated \printbibliography<name> commands.
+\cs_new_protected:Npn \refsuite_bibliography_prepare:n #1
+  {
+    \tl_clear:N \l_refsuite_bibliography_name_tl
+    \tl_clear:N \l_refsuite_bibliography_title_tl
+    \clist_clear:N \l_refsuite_bibliography_files_clist
+    \keys_set:nn { refsuite / bibliography } {#1}
+    \tl_if_empty:NT \l_refsuite_bibliography_title_tl
+      { \tl_set_eq:NN \l_refsuite_bibliography_title_tl \l_refsuite_bibliography_name_tl }
+  }
+
+% Prefix bibliography resource files with biblatex/path when that key is set.
+\cs_new:Npn \refsuite_biblatex_file_path:n #1
+  {
+    \tl_if_empty:NTF \l_refsuite_biblatex_path_tl
+      {#1}
+      { \l_refsuite_biblatex_path_tl / #1 }
+  }
+
+% ------------------------------------------------------------------------------
+% Grouped biblatex support
+% ------------------------------------------------------------------------------
+% Multiple bibliography groups are implemented by assigning keywords through a
+% sourcemap, then generating filtered printing commands for each named group.
+
+\cs_new_protected:Npn \refsuite_add_grouped_bibresource:n #1
+  { \addbibresource { \refsuite_biblatex_file_path:n {#1} } }
+
+\cs_new_protected:Npn \refsuite_biblatex_sourcemap_add:n #1
+  {
+    \tl_put_right:Nx \l_refsuite_biblatex_sourcemap_tl
+      {
+        \exp_not:N \map
+          {
+            \exp_not:N \perdatasource { \refsuite_biblatex_file_path:n {#1} }
+            \exp_not:N \step [ fieldset = keywords, fieldvalue = {,~}, appendstrict ]
+            \exp_not:N \step
+              [ fieldset = keywords, fieldvalue = bib \l_refsuite_bibliography_name_tl, append ]
+          }
+      }
+  }
+
+\cs_new_protected:Npn \refsuite_declare_bibliography_sourcemap:
+  {
+    \tl_clear:N \l_refsuite_biblatex_sourcemap_tl
+    \seq_map_inline:Nn \l_refsuite_bibliographies_seq
+      {
+        \refsuite_bibliography_prepare:n {##1}
+        \clist_map_inline:Nn \l_refsuite_bibliography_files_clist
+          { \refsuite_biblatex_sourcemap_add:n {####1} }
+      }
+    \use:x
+      {
+        \exp_not:N \DeclareSourcemap
+          { \exp_not:N \maps [ datatype = bibtex, overwrite ] { \exp_not:V \l_refsuite_biblatex_sourcemap_tl } }
+      }
+  }
+
+\cs_new_protected:Npn \refsuite_define_printbibliography:
+  {
+    \tl_if_empty:NF \l_refsuite_bibliography_name_tl
+      {
+        \cs_if_exist:cTF { printbibliography \l_refsuite_bibliography_name_tl }
+          { \msg_warning:nn { refsuite } { printbibliography-exists } }
+          {
+            \use:x
+              {
+                \exp_not:N \NewDocumentCommand
+                  \exp_not:c { printbibliography \l_refsuite_bibliography_name_tl }
+                  { o }
+                  {
+                    \exp_not:N \IfNoValueTF {####1}
+                      {
+                        \exp_not:N \printbibliography
+                          [ title = { \l_refsuite_bibliography_title_tl }, keyword = bib \l_refsuite_bibliography_name_tl ]
+                      }
+                      {
+                        \exp_not:N \printbibliography
+                          [ title = { \l_refsuite_bibliography_title_tl }, keyword = bib \l_refsuite_bibliography_name_tl, ####1 ]
+                      }
+                  }
+              }
+          }
+      }
+  }
+
+% Apply grouped bibliographies after biblatex has been loaded.
+\cs_new_protected:Npn \refsuite_apply_grouped_bibliographies:
+  {
+    \int_compare:nNnT { \seq_count:N \l_refsuite_bibliographies_seq } > { 1 }
+      { \refsuite_declare_bibliography_sourcemap: }
+    \seq_map_inline:Nn \l_refsuite_bibliographies_seq
+      {
+        \refsuite_bibliography_prepare:n {##1}
+        \clist_map_inline:Nn \l_refsuite_bibliography_files_clist
+          { \refsuite_add_grouped_bibresource:n {####1} }
+        \int_compare:nNnT { \seq_count:N \l_refsuite_bibliographies_seq } > { 1 }
+          { \refsuite_define_printbibliography: }
+      }
+  }
+
+% ------------------------------------------------------------------------------
+% Feature application
+% ------------------------------------------------------------------------------
+% These functions load packages and create generated commands after all keys have
+% been parsed. They are deliberately separate so TeX and Lua flows converge on
+% the same feature behavior where possible.
+
+% Generate lowercase and capitalized short-reference commands.
+\cs_new_protected:Npn \refsuite_define_shortref:nn #1#2
+  {
+    \cs_if_exist:cTF {#1}
+      { \msg_warning:nn { refsuite } { shortref-exists } }
+      { \cs_new_protected:cpn {#1} ##1 { #2 ~ \ref {##1} } }
+    \cs_if_exist:cTF { \refsuite_capitalize:n {#1} }
+      { \msg_warning:nn { refsuite } { shortref-exists } }
+      {
+        \cs_new_protected:cpn { \refsuite_capitalize:n {#1} } ##1
+          { \MakeUppercase {#2} ~ \ref {##1} }
+      }
+  }
+
+% Load hyperref, apply \hypersetup, and define short-reference commands.
+\cs_new_protected:Npn \refsuite_apply_hyperref:
+  {
+    \bool_if:NT \l_refsuite_hyperref_bool
+      {
+        \tl_if_empty:NF \l_refsuite_hyperref_options_tl
+          { \exp_args:NV \PassOptionsToPackage \l_refsuite_hyperref_options_tl { hyperref } }
+        \refsuite_require_package:n { hyperref }
+        \tl_if_empty:NF \l_refsuite_hypersetup_tl
+          { \exp_args:NV \hypersetup \l_refsuite_hypersetup_tl }
+        \prop_map_inline:Nn \l_refsuite_shortrefs_prop
+          { \refsuite_define_shortref:nn {##1} {##2} }
+      }
+  }
+
+% Enable or disable the Lua-assisted automatic zref-clever command.
+\cs_new_protected:Npn \refsuite_azcref_set:n #1
+  {
+    \str_if_eq:nnTF {#1} { false }
+      { \bool_set_false:N \l_refsuite_azcref_bool }
+      { \bool_set_true:N \l_refsuite_azcref_bool }
+    \bool_if:NT \l_refsuite_azcref_bool
+      { \bool_set_true:N \l_refsuite_zrefclever_bool }
+  }
+
+% Define \azcref only under LuaTeX, because the implementation inspects LuaTeX
+% node lists to infer the grammatical case from preceding words.
+\cs_new_protected:Npn \refsuite_define_azcref:
+  {
+    \cs_if_exist:NTF \azcref
+      { \msg_warning:nn { refsuite } { azcref-exists } }
+      {
+        \ifLuaTeX
+          \directlua{require('code.refsuite.code').install_azcref()}
+          \NewDocumentCommand \azcref { m }
+            { \directlua{require('code.refsuite.code').azcref("\luaescapestring{##1}")} }
+        \else
+          \msg_error:nn { refsuite } { azcref-unavailable }
+        \fi
+      }
+  }
+
+% Load zref-clever and apply its setup before defining \azcref, if requested.
+\cs_new_protected:Npn \refsuite_apply_zrefclever:
+  {
+    \bool_if:NT \l_refsuite_zrefclever_bool
+      {
+        \tl_if_empty:NF \l_refsuite_zrefclever_options_tl
+          { \exp_args:NV \PassOptionsToPackage \l_refsuite_zrefclever_options_tl { zref-clever } }
+        \refsuite_require_package:n { zref-clever }
+        \tl_if_empty:NF \l_refsuite_zrefclever_setup_tl
+          { \exp_args:NV \zcsetup \l_refsuite_zrefclever_setup_tl }
+        \bool_if:NT \l_refsuite_azcref_bool
+          { \refsuite_define_azcref: }
+      }
+  }
+
+% Load biblatex and add resources, including grouped bibliography support.
+\cs_new_protected:Npn \refsuite_apply_biblatex:
+  {
+    \bool_if:NT \l_refsuite_biblatex_bool
+      {
+        \tl_if_empty:NF \l_refsuite_biblatex_options_tl
+          { \exp_args:NV \PassOptionsToPackage \l_refsuite_biblatex_options_tl { biblatex } }
+        \refsuite_require_package:n { biblatex }
+        \seq_if_empty:NTF \l_refsuite_bibliographies_seq
+          {
+            \clist_map_inline:Nn \l_refsuite_bibresources_clist
+              { \addbibresource {##1} }
+          }
+          { \refsuite_apply_grouped_bibliographies: }
+      }
+  }
+
+% Extract the name key from an imakeidx index option list.
+\cs_new_protected:Npn \refsuite_index_name_without_value:n #1 { }
+\cs_new_protected:Npn \refsuite_index_name_with_value:nn #1#2
+  {
+    \str_if_eq:nnT {#1} { name }
+      { \tl_set:Nn \l_refsuite_index_name_tl {#2} }
+  }
+
+% Create \printindex<name> for named indexes, for example \printindexnotation.
+\cs_new_protected:Npn \refsuite_define_printindex:n #1
+  {
+    \tl_clear:N \l_refsuite_index_name_tl
+    \keyval_parse:NNn
+      \refsuite_index_name_without_value:n
+      \refsuite_index_name_with_value:nn
+      {#1}
+    \tl_if_empty:NF \l_refsuite_index_name_tl
+      {
+        \cs_if_exist:cTF { printindex\l_refsuite_index_name_tl }
+          { \msg_warning:nn { refsuite } { printindex-exists } }
+          {
+            \use:x
+              {
+                \cs_new_protected:cpn { printindex\l_refsuite_index_name_tl }
+                  { \exp_not:N \printindex [ \l_refsuite_index_name_tl ] }
+              }
+          }
+      }
+  }
+
+% Load imakeidx, create indexes, and add generated print commands for named ones.
+\cs_new_protected:Npn \refsuite_apply_indexes:
+  {
+    \bool_if:NT \l_refsuite_indexes_bool
+      {
+        \tl_if_empty:NF \l_refsuite_indexes_options_tl
+          { \exp_args:NV \PassOptionsToPackage \l_refsuite_indexes_options_tl { imakeidx } }
+        \refsuite_require_package:n { imakeidx }
+        \seq_map_inline:Nn \l_refsuite_indexes_seq
+          {
+            \makeindex [##1]
+            \refsuite_define_printindex:n {##1}
+          }
+      }
+  }
+
+% Apply all feature groups in dependency order.
+\cs_new_protected:Npn \refsuite_apply_configuration:
+  {
+    \bool_if:NT \l_refsuite_azcref_bool
+      { \bool_set_true:N \l_refsuite_zrefclever_bool }
+    \refsuite_apply_hyperref:
+    \refsuite_apply_zrefclever:
+    \refsuite_apply_biblatex:
+    \refsuite_apply_indexes:
+    \bool_set_true:N \l_refsuite_configured_bool
+  }
+
+% ------------------------------------------------------------------------------
+% Public key interface
+% ------------------------------------------------------------------------------
+% Aliases such as zcref/zrefclever and bibtex/biblatex are accepted so Lua table
+% names and TeX key names can stay close to older examples.
+
+\keys_define:nn { refsuite }
+  {
+    hyperref .bool_set:N = \l_refsuite_hyperref_bool,
+    hyperref .default:n = true,
+    hyperref/options .tl_set:N = \l_refsuite_hyperref_options_tl,
+    hyperref/setup .tl_set:N = \l_refsuite_hypersetup_tl,
+    hyperref/hypersetup .tl_set:N = \l_refsuite_hypersetup_tl,
+    shortrefs .code:n = \refsuite_shortrefs_set:n {#1},
+    shortrefs+ .code:n = \refsuite_shortrefs_put:n {#1},
+
+    zref-clever .bool_set:N = \l_refsuite_zrefclever_bool,
+    zref-clever .default:n = true,
+    zref-clever/options .tl_set:N = \l_refsuite_zrefclever_options_tl,
+    zref-clever/setup .tl_set:N = \l_refsuite_zrefclever_setup_tl,
+    zrefclever .bool_set:N = \l_refsuite_zrefclever_bool,
+    zrefclever .default:n = true,
+    zrefclever/options .tl_set:N = \l_refsuite_zrefclever_options_tl,
+    zrefclever/setup .tl_set:N = \l_refsuite_zrefclever_setup_tl,
+    zcref .bool_set:N = \l_refsuite_zrefclever_bool,
+    zcref .default:n = true,
+    zcref/options .tl_set:N = \l_refsuite_zrefclever_options_tl,
+    zcref/setup .tl_set:N = \l_refsuite_zrefclever_setup_tl,
+    azcref .code:n = \refsuite_azcref_set:n {#1},
+    azcref .default:n = true,
+    zref-clever/azcref .code:n = \refsuite_azcref_set:n {#1},
+    zref-clever/azcref .default:n = true,
+    zrefclever/azcref .code:n = \refsuite_azcref_set:n {#1},
+    zrefclever/azcref .default:n = true,
+    zcref/azcref .code:n = \refsuite_azcref_set:n {#1},
+    zcref/azcref .default:n = true,
+
+    biblatex .bool_set:N = \l_refsuite_biblatex_bool,
+    biblatex .default:n = true,
+    biblatex/options .tl_set:N = \l_refsuite_biblatex_options_tl,
+    biblatex/loadtime_opts .tl_set:N = \l_refsuite_biblatex_options_tl,
+    biblatex/path .tl_set:N = \l_refsuite_biblatex_path_tl,
+    biblatex/style .tl_set:N = \l_refsuite_biblatex_style_tl,
+    biblatex/resources .clist_set:N = \l_refsuite_bibresources_clist,
+    biblatex/resource .code:n = \clist_put_right:Nn \l_refsuite_bibresources_clist {#1},
+    biblatex/bibliographies .code:n = \refsuite_bibliographies_set:n {#1},
+    biblatex/bibliography .code:n = \seq_put_right:Nn \l_refsuite_bibliographies_seq {#1},
+    bibtex .bool_set:N = \l_refsuite_biblatex_bool,
+    bibtex .default:n = true,
+    bibtex/options .tl_set:N = \l_refsuite_biblatex_options_tl,
+    bibtex/loadtime_opts .tl_set:N = \l_refsuite_biblatex_options_tl,
+    bibtex/path .tl_set:N = \l_refsuite_biblatex_path_tl,
+    bibtex/style .tl_set:N = \l_refsuite_biblatex_style_tl,
+    bibtex/resources .clist_set:N = \l_refsuite_bibresources_clist,
+    bibtex/resource .code:n = \clist_put_right:Nn \l_refsuite_bibresources_clist {#1},
+    bibtex/bibliographies .code:n = \refsuite_bibliographies_set:n {#1},
+    bibtex/bibliography .code:n = \seq_put_right:Nn \l_refsuite_bibliographies_seq {#1},
+
+    indexes .bool_set:N = \l_refsuite_indexes_bool,
+    indexes .default:n = true,
+    indexes/options .tl_set:N = \l_refsuite_indexes_options_tl,
+    indexes/list .code:n = \refsuite_indexes_set:n {#1},
+    index .code:n = \seq_put_right:Nn \l_refsuite_indexes_seq {#1},
+    imakeidx .bool_set:N = \l_refsuite_indexes_bool,
+    imakeidx .default:n = true,
+    imakeidx/options .tl_set:N = \l_refsuite_indexes_options_tl,
+    imakeidx/list .code:n = \refsuite_indexes_set:n {#1}
+  }
+
+\keys_define:nn { refsuite / bibliography }
+  {
+    name .tl_set:N = \l_refsuite_bibliography_name_tl,
+    title .tl_set:N = \l_refsuite_bibliography_title_tl,
+    files .clist_set:N = \l_refsuite_bibliography_files_clist,
+    file .code:n = \clist_put_right:Nn \l_refsuite_bibliography_files_clist {#1},
+    resources .clist_set:N = \l_refsuite_bibliography_files_clist,
+    resource .code:n = \clist_put_right:Nn \l_refsuite_bibliography_files_clist {#1}
+  }
+
+% ------------------------------------------------------------------------------
+% Public commands
+% ------------------------------------------------------------------------------
+
+% Apply the built-in defaults. Useful for documents that only want hyperref and
+% the default short-reference commands.
+\NewDocumentCommand \DefaultReferencesConfiguration { }
+  {
+    \refsuite_assert_not_configured:T
+      {
+        \refsuite_reset_configuration:
+        \refsuite_apply_configuration:
+      }
+  }
+
+% Apply an explicit expl3 key configuration from the document preamble.
+\NewDocumentCommand \SetReferencesConfiguration { m }
+  {
+    \refsuite_assert_not_configured:T
+      {
+        \refsuite_reset_configuration:
+        \keys_set:nn { refsuite } {#1}
+        \refsuite_apply_configuration:
+      }
+  }
+
+% Load a Lua table and let refsuite.code.lua emit equivalent TeX setup commands.
+\NewDocumentCommand \LoadLuaReferencesConfiguration { m }
+  {
+    \refsuite_assert_not_configured:T
+      {
+        \ifLuaTeX
+          \directlua
+            {
+              local\space r=require('code.refsuite.code').init();
+              r:set_configuration("\luaescapestring{#1}");
+              r:configure();
+            }
+          \bool_set_true:N \l_refsuite_configured_bool
+        \else
+          \msg_warning:nn { refsuite } { lua-unavailable }
+        \fi
+      }
+  }
+
+\@onlypreamble \DefaultReferencesConfiguration
+\@onlypreamble \SetReferencesConfiguration
+\@onlypreamble \LoadLuaReferencesConfiguration
+
+\ExplSyntaxOff

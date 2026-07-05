@@ -1,0 +1,180 @@
+\documentclass{article}
+
+\newcounter{listing}
+
+% ==============================================================================
+% LOAD REFSUITE PACKAGE WITH EXPL3 KEY CONFIGURATION
+% ==============================================================================
+\usepackage{refsuite}
+\SetReferencesConfiguration{
+  hyperref = true,
+  hyperref/options = { unicode, hyperindex, pdfpagelabels },
+  hyperref/setup = {
+    breaklinks,
+    colorlinks,
+    linktocpage,
+    urlcolor = blue,
+    linkcolor = red,
+    filecolor = magenta,
+    citecolor = green,
+    pdftitle = {RefSuite expl3 Flow Demonstration},
+    pdfauthor = {Jane Doe}
+  },
+  shortrefs = {
+    picref = Fig.,
+    tabref = Table,
+    secref = Section,
+    lstref = Listing
+  },
+  biblatex = true,
+  biblatex/options = { backend = biber, style = numeric, defernumbers = true },
+  biblatex/path = .,
+  biblatex/bibliographies = {
+    {
+      name = main,
+      title = References,
+      files = expl3-main.bib
+    },
+    {
+      name = online,
+      title = {Online Resources},
+      files = expl3-online.bib
+    }
+  },
+  indexes = true,
+  indexes/options = { makeindex, noautomatic },
+  indexes/list = {
+    { name = notation, title = {List of Notations}, intoc, columns = 2, columnsep = 20pt },
+    { title = {Subject Index}, intoc, columns = 3, columnsep = 15pt }
+  }
+}
+
+\begin{document}
+
+\title{RefSuite expl3 Configuration Flow}
+\author{Jane Doe}
+\date{\today}
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+\label{sec:introduction}
+
+This example demonstrates the TeX-side expl3 key configuration flow for
+\texttt{refsuite}. The configuration is written directly in the document preamble
+with \verb|\SetReferencesConfiguration|.
+
+The example uses the small bibliography files stored beside this source file, so
+it can be compiled without external data.  It should be built from the
+\texttt{examples} directory; generated auxiliary files are placed in
+\texttt{.build/}, while the final PDF stays in this directory.
+
+\subsection{Package Configuration Snippet}
+
+The package and its supported features are configured through expl3 keys:
+
+This snippet is intentionally close to the real preamble above.  The
+\verb|biblatex/path = .| setting means bibliography resources are resolved from
+the current \texttt{examples} directory, matching the local \texttt{latexmkrc}
+output convention.
+
+\begin{quote}
+\begin{verbatim}
+\usepackage{refsuite}
+\SetReferencesConfiguration{
+  hyperref = true,
+  hyperref/setup = {
+    colorlinks,
+    linkcolor = red,
+    citecolor = green
+  },
+  shortrefs = {
+    picref = Fig.,
+    tabref = Table,
+    secref = Section,
+    lstref = Listing
+  },
+  biblatex = true,
+  biblatex/options = { backend = biber, style = numeric, defernumbers = true },
+  biblatex/path = .,
+  biblatex/bibliographies = {
+    { name = main, title = References, files = expl3-main.bib },
+    { name = online, title = {Online Resources}, files = expl3-online.bib }
+  },
+  indexes = true,
+  indexes/options = { makeindex, noautomatic },
+  indexes/list = {
+    { name = notation, title = {List of Notations}, intoc },
+    { title = {Subject Index}, intoc }
+  }
+}
+\end{verbatim}
+\end{quote}
+\refstepcounter{listing}\label{lst:configuration}
+
+\section{Main Content}
+
+\subsection{Configured Short References}
+
+The expl3 flow creates the same short-reference commands: \picref{fig:sample},
+\tabref{tab:sample}, \secref{sec:conclusion}, and \lstref{lst:configuration}.
+The lowercase commands use the configured text exactly, while the capitalized
+commands are generated automatically for sentence starts.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.5\textwidth}{\centering Example figure}}
+  \caption{Example figure with caption}
+  \label{fig:sample}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{|c|c|}
+    \hline
+    Column 1 & Column 2 \\
+    \hline
+    Data 1 & Data 2 \\
+    Data 3 & Data 4 \\
+    \hline
+  \end{tabular}
+  \caption{Example table}
+  \label{tab:sample}
+\end{table}
+
+\subsection{Bibliography}
+
+The expl3 key flow can configure multiple named bibliography groups. This
+example cites books \cite{knuth1984texbook,lamport1994latex} and an online
+resource \cite{ctan2024latex}.
+
+Because two bibliography groups are configured, \texttt{refsuite} generates
+separate printing commands.  They are used near the end of the document as
+\verb|\printbibliographymain| and \verb|\printbibliographyonline|.
+
+\subsection{Indexes}
+
+The index configuration creates one named notation index and one ordinary subject
+index.  Named indexes also receive generated print commands, so the notation
+index can be printed with \verb|\printindexnotation|.
+
+\index[notation]{$\gamma$} Gamma notation
+\index[notation]{$\delta$} Delta notation
+\index{LaTeX} Typesetting system
+\index{bibliography} List of references
+\index{expl3 configuration} expl3 configuration
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+The expl3 flow is useful when the package configuration should stay in the TeX
+preamble and use the same key-value syntax as the package internals.
+
+\printbibliographymain
+\printbibliographyonline
+
+\printindexnotation
+\printindex
+
+\end{document}

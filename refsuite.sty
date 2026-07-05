@@ -1,39 +1,49 @@
-% refconf.sty - LuaLaTeX based configuration for references in LaTeX
-% Version: alpha-0.1
-\NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{refsuite}[2024/12/20 alpha-0.1 Lua]
+% ==============================================================================
+% REFERENCE SUITE PACKAGE (refsuite)
+% Centralized setup for hyperref, short references, biblatex, indexes, and
+% Lua-assisted zref-clever behavior.
+% ==============================================================================
+\NeedsTeXFormat{LaTeX2e}[2024-06-01]
+\ProvidesPackage{refsuite}[2026/06/08 alpha-0.2 reference suite]
 
 % ==============================================================================
-% ENGINE AND PACKAGE REQUIREMENTS
+% DEPENDENCIES AND OPTION PROCESSING
 % ==============================================================================
-% require LuaTeX enginge
+% refsuite currently exposes configuration through public commands rather than
+% load-time options, but kvoptions keeps the package option family aligned with
+% the other suite packages.
+
 \RequirePackage{iftex}
-\RequireLuaTeX
-
 \RequirePackage{kvoptions}
-\RequirePackage{luaboolean}
 
-\SetupKeyvalOptions{family=refconf, prefix=refconf@}
-\DeclareStringOption[]{configuration}
-\ProcessKeyvalOptions*
+\SetupKeyvalOptions{family=refsuite,prefix=@refsuite@}
+
+\ProcessKeyvalOptions{refsuite}
 
 % ==============================================================================
-% LUA MODULE INITIALIZATION
+% LUA MODULE BRIDGE
 % ==============================================================================
-% Initialize the Lua configuration module and apply user configuration
-\directlua{refsuite = require('refsuite.lua').init()}
-\makeatletter
-\let\refconfpath\refconf@configuration
-\makeatother
-\directlua{refsuite = refsuite.set_configuration('\refconfpath')}
+% Map require('code.refsuite.code') to the Lua file found by kpathsea. This keeps
+% Lua configuration working when examples are built from examples/.
 
-\directlua{refsuite.configure()}%
+\ifLuaTeX
+  \directlua{package.preload['code.refsuite.code'] = function() return dofile(kpse.find_file('code/refsuite.code.lua')) end}
+\fi
+
 % ==============================================================================
-% FUTURE EXTENSIONS (TODO)
+% PACKAGE LOADING HELPER
 % ==============================================================================
-% TODO: add support for zref and knowledge packages
-% I guess knowledge package should be patched, in order
-% to support zref (and finally add externalization)
-%\RequirePackage{zref-clever}%
-%\RequirePackage{knowledge}%
+% The core implementation is written in expl3; this wrapper keeps package loading
+% explicit and protected where feature application functions need it.
+
+\ExplSyntaxOn
+\cs_new_protected:Npn \refsuite_require_package:n #1 { \RequirePackage {#1} }
+\ExplSyntaxOff
+
+% ==============================================================================
+% CORE IMPLEMENTATION
+% ==============================================================================
+
+\input{code/refsuite.core.code.tex}
+
 \endinput

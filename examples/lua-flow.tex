@@ -1,0 +1,181 @@
+\documentclass{article}
+
+\newcounter{listing}
+
+\usepackage{fontspec}
+\setmainfont{DejaVu Serif}
+\usepackage[russian,english]{babel}
+\usepackage{amsthm}
+
+% ==============================================================================
+% LOAD REFSUITE PACKAGE WITH LUA CONFIGURATION
+% ==============================================================================
+\usepackage{refsuite}
+\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+
+\newtheorem{theorem}{Теорема}
+
+\begin{document}
+
+\title{RefSuite Lua Configuration Flow}
+\author{John Doe}
+\date{\today}
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+\label{sec:introduction}
+
+This example demonstrates the Lua configuration flow for \texttt{refsuite}. The
+package reads a Lua table and uses it to configure short references,
+bibliographies, and indexes before the document starts.
+
+The Lua table and bibliography files live beside this source file to keep the
+example explicit and easy to inspect.  Build this file from the \texttt{examples}
+directory; auxiliary files go to \texttt{.build/}, and the resulting PDF stays
+beside this source file.
+
+\subsection{Package Configuration Snippet}
+
+The package is loaded normally, then configured from a Lua file:
+
+\begin{quote}
+\begin{verbatim}
+\usepackage{refsuite}
+\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+\end{verbatim}
+\end{quote}
+
+The Lua file can describe multiple bibliography groups and named index commands:
+
+The bibliography path is \texttt{.} because the \texttt{.bib} files are stored
+next to this example source.  This keeps the data files visible while still
+sending temporary build output to \texttt{.build/}.
+
+\begin{quote}
+\begin{verbatim}
+return {
+  hyperref = {
+    enable = true,
+    shortref = {
+      { csname = 'picref', reftext = 'Fig.' },
+      { csname = 'tabref', reftext = 'Table' },
+      { csname = 'secref', reftext = 'Section' },
+      { csname = 'lstref', reftext = 'Listing' },
+    },
+  },
+  zrefclever = {
+    enable = true,
+    setup = { lang = 'russian' },
+    azcref = true,
+  },
+  bibtex = {
+    enable = true,
+    loadtime_opts = { backend = 'biber', style = 'numeric' },
+    path = '.',
+    bibliographies = {
+      { name = 'main', title = 'References', files = 'lua-main.bib' },
+      { name = 'online', title = 'Online Resources', files = 'lua-online.bib' },
+    },
+  },
+  indexes = {
+    enable = true,
+    list = {
+      { name = 'notation', title = 'List of Notations', intoc = true },
+      { name = nil, title = 'Subject Index', intoc = true },
+    },
+  },
+}
+\end{verbatim}
+\end{quote}
+\refstepcounter{listing}\label{lst:configuration}
+
+\section{Main Content}
+
+\subsection{Configured Short References}
+
+The Lua configuration creates commands such as \picref{fig:sample},
+\tabref{tab:sample}, \secref{sec:conclusion}, and \lstref{lst:configuration}.
+These commands are generated from the Lua table before the document body begins,
+so they can be used like ordinary LaTeX commands.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{\parbox{0.5\textwidth}{\centering Example figure}}
+  \caption{Example figure with caption}
+  \label{fig:sample}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{|c|c|}
+    \hline
+    Column 1 & Column 2 \\
+    \hline
+    Data 1 & Data 2 \\
+    Data 3 & Data 4 \\
+    \hline
+  \end{tabular}
+  \caption{Example table}
+  \label{tab:sample}
+\end{table}
+
+\subsection{Bibliographies}
+
+Lua configuration can create named bibliography printing commands. This example
+cites books \cite{knuth1984texbook,lamport1994latex} and online resources
+\cite{torvalds2003git,ctan2024latex}.
+
+The two bibliography groups are printed separately at the end of the document
+using commands generated from their Lua names.
+
+\subsection{Indexes}
+
+The Lua table configures a named notation index and the default subject index.
+Both are populated here and printed after the bibliographies.
+
+\index[notation]{$\alpha$} Alpha notation
+\index[notation]{$\beta$} Beta notation
+\index{LaTeX} Typesetting system
+\index{bibliography} List of references
+\index{Lua configuration} Lua configuration
+
+\section{Automatic zref-clever References}
+
+The Lua flow can also load \texttt{zref-clever} and define \verb|\azcref| for
+automatic Russian case selection when LuaLaTeX is used.
+
+The examples below place different Russian prepositions immediately before
+\verb|\azcref|.  The Lua helper inspects the previous words and selects the case
+argument passed to \verb|\zcref|.
+
+\begin{otherlanguage}{russian}
+\begin{theorem}\zlabel{thm:lua-auto-case}
+Тестовое утверждение для проверки автоматического выбора падежа.
+\end{theorem}
+
+Без предлога: \azcref{thm:lua-auto-case}.
+
+по \azcref{thm:lua-auto-case}.
+
+к \azcref{thm:lua-auto-case}.
+
+в силу \azcref{thm:lua-auto-case}.
+
+из-за \azcref{thm:lua-auto-case}.
+\end{otherlanguage}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+The Lua flow is useful when configuration should live in a Lua data structure or
+when named bibliography commands should be generated from that structure.
+
+\printbibliographymain
+\printbibliographyonline
+
+\printindexnotation
+\printindex
+
+\end{document}
