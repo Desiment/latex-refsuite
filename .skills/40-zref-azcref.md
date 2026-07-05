@@ -23,7 +23,7 @@ Lua configuration:
 
 ```latex
 \usepackage{refsuite}
-\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+\LoadLuaReferencesConfiguration{example.refsuite.lua-flow-conf.lua}
 ```
 
 with:

@@ -11,7 +11,7 @@ Compile with LuaLaTeX.
 
 ```latex
 \usepackage{refsuite}
-\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+\LoadLuaReferencesConfiguration{example.refsuite.lua-flow-conf.lua}
 ```
 
 ## Lua Table Shape

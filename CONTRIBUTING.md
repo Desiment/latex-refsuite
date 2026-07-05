@@ -13,8 +13,8 @@ refsuite/
 │   ├── refsuite.core.code.tex
 │   └── refsuite.code.lua
 ├── examples/
-│   ├── expl3-flow.tex
-│   ├── lua-flow.tex
+│   ├── example.refsuite.expl3-flow.tex
+│   ├── example.refsuite.lua-flow.tex
 │   ├── latexmkrc
 │   └── .build/
 ├── README.md
@@ -28,8 +28,8 @@ Run example builds from the `examples/` directory:
 
 ```sh
 cd examples
-latexmk -r latexmkrc expl3-flow.tex
-latexmk -r latexmkrc lua-flow.tex
+latexmk -r latexmkrc example.refsuite.expl3-flow.tex
+latexmk -r latexmkrc example.refsuite.lua-flow.tex
 ```
 
 The build convention is:

@@ -46,12 +46,12 @@ local CustomConfig = {
       {
         name = 'main',
         title = 'References',
-        files = 'lua-main.bib',
+        files = 'example.refsuite.lua-main.bib',
       },
       {
         name = 'online',
         title = 'Online Resources and Repositories',
-        files = 'lua-online.bib',
+        files = 'example.refsuite.lua-online.bib',
       },
     },
   },

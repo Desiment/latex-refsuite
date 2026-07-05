@@ -50,7 +50,7 @@ The package supports two configuration flows:
 
 ```latex
 \usepackage{refsuite}
-\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+\LoadLuaReferencesConfiguration{example.refsuite.lua-flow-conf.lua}
 ```
 
 Lua configuration is useful when the same reference setup should be generated or
@@ -62,8 +62,8 @@ Build both examples from the `examples/` directory:
 
 ```sh
 cd examples
-latexmk -r latexmkrc expl3-flow.tex
-latexmk -r latexmkrc lua-flow.tex
+latexmk -r latexmkrc example.refsuite.expl3-flow.tex
+latexmk -r latexmkrc example.refsuite.lua-flow.tex
 ```
 
 The build writes auxiliary files to `examples/.build/` and final PDFs directly
@@ -82,8 +82,8 @@ refsuite/
 │   ├── refsuite.core.code.tex
 │   └── refsuite.code.lua
 └── examples/
-    ├── expl3-flow.tex
-    ├── lua-flow.tex
+    ├── example.refsuite.expl3-flow.tex
+    ├── example.refsuite.lua-flow.tex
     └── latexmkrc
 ```
 

@@ -11,7 +11,7 @@
 % LOAD REFSUITE PACKAGE WITH LUA CONFIGURATION
 % ==============================================================================
 \usepackage{refsuite}
-\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+\LoadLuaReferencesConfiguration{example.refsuite.lua-flow-conf.lua}
 
 \newtheorem{theorem}{Теорема}
 
@@ -43,7 +43,7 @@ The package is loaded normally, then configured from a Lua file:
 \begin{quote}
 \begin{verbatim}
 \usepackage{refsuite}
-\LoadLuaReferencesConfiguration{lua-flow-conf.lua}
+\LoadLuaReferencesConfiguration{example.refsuite.lua-flow-conf.lua}
 \end{verbatim}
 \end{quote}
 
@@ -75,8 +75,8 @@ return {
     loadtime_opts = { backend = 'biber', style = 'numeric' },
     path = '.',
     bibliographies = {
-      { name = 'main', title = 'References', files = 'lua-main.bib' },
-      { name = 'online', title = 'Online Resources', files = 'lua-online.bib' },
+      { name = 'main', title = 'References', files = 'example.refsuite.lua-main.bib' },
+      { name = 'online', title = 'Online Resources', files = 'example.refsuite.lua-online.bib' },
     },
   },
   indexes = {
