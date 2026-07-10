@@ -1,3 +1,13 @@
+---
+name: refsuite-20-lua-configuration
+description: Configure refsuite from Lua for reference names, short-reference aliases, and package defaults.
+license: MIT
+compatibility: opencode
+metadata:
+  package: refsuite
+  topic: lua-configuration
+---
+
 # refsuite: Lua Configuration
 
 ## When To Use

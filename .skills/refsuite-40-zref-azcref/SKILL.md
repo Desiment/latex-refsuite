@@ -1,3 +1,13 @@
+---
+name: refsuite-40-zref-azcref
+description: Use refsuite zref-clever and azcref integration for theorem-like and custom references.
+license: MIT
+compatibility: opencode
+metadata:
+  package: refsuite
+  topic: zref-azcref
+---
+
 # refsuite: zref-clever And azcref
 
 ## When To Use

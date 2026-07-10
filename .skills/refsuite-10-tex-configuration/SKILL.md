@@ -1,3 +1,13 @@
+---
+name: refsuite-10-tex-configuration
+description: Configure refsuite from TeX using package keys and document-level reference setup commands.
+license: MIT
+compatibility: opencode
+metadata:
+  package: refsuite
+  topic: tex-configuration
+---
+
 # refsuite: TeX Configuration Keys
 
 ## When To Use

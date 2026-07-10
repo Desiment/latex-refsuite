@@ -1,3 +1,13 @@
+---
+name: refsuite-00-loading
+description: Load refsuite and choose the correct configuration path for references, bibliographies, and indexes.
+license: MIT
+compatibility: opencode
+metadata:
+  package: refsuite
+  topic: loading
+---
+
 # refsuite: Loading
 
 ## When To Use

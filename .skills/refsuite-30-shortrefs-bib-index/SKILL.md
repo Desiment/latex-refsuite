@@ -1,3 +1,13 @@
+---
+name: refsuite-30-shortrefs-bib-index
+description: Use refsuite short references, bibliography helpers, and index commands in LaTeX documents.
+license: MIT
+compatibility: opencode
+metadata:
+  package: refsuite
+  topic: shortrefs-bib-index
+---
+
 # refsuite: Short References, Bibliographies, And Indexes
 
 ## When To Use
